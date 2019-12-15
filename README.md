@@ -12,7 +12,7 @@ Hit the following link to start up the console: https://console.cloud.google.com
 The fastest way to get to a shell is to use the "cloud shell" functionality. The cloud shell already has all tools installed and will 
 default to the project you have open. It works by provisioning a small VM.
 
-TODO: CS screenshot
+![Create a bucket](https://github.com/hartwigmedical/gcpworkshop/blob/master/images/cloud-shell.png)
 
 Open a cloud shell and try the following:
 
@@ -46,7 +46,8 @@ accessed.
 * By default data in encrypted with Google's internal keys. Customer Managed Encryption is also available, but does carry a large 
 performance penalty.
 
-Create a bucket called `{yourname}-gcpdemo`.
+Create a bucket called `{yourname}-gcpdemo`. Bucket names have some restrictions: they must be globally unique; they must not have 
+underscores; they must be lower-case. This is because you can expose data via direct URL access and must conform to the rules of DNS.
 
 From there its best to move to the command line. After you've create your bucket, you can use the `gsutil` tool to upload, download, and
 copy data between buckets. Try the following:
