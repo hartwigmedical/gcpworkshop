@@ -7,9 +7,20 @@ create a quick shell for more advances operations.
 
 Hit the following link to start up the console: https://console.cloud.google.com/
 
-### Projects and Accounts
+### Projects and Users
 
+When you begin in the console you'll notice that you are working within a *Project*. Project group together services and users along with 
+billing. Most of the time you'll work in a single project along with close colleagues, and you're interactions with GCP will be confined
+there.
 
+Good to note that a user can belong to many projects.
+
+### IAM
+
+IAM is used to organize users permissions. It uses the concepts of roles, which group permissions into cohesive abilities to perform tasks.
+
+Unfortunately there are a lot of roles, and its not always clear how they map to a give permission. 
+[This page](https://cloud.google.com/iam/docs/understanding-roles) gives the overview of how roles map to permissions.
 
 ### Using the command line
 
@@ -102,7 +113,41 @@ gcloud beta compute --project "your-project" ssh --zone "europe-west4-a" "your-v
 
 Try SSH'ing into your new VM and running the same `gsutil` commands we ran in the previous sections.
 
-### 
+### Images
+
+Images are a handy way to save and share state of a VM. You can take an image on the command line by:
+
+```bash
+ gcloud images create ${sourceInstance}-$(date +%Y%m%d%H%M) --family=${sourceInstance} --source-disk=${sourceInstance} --source-disk-zone=${ZONE}"
+```
+
+Or via the console through `Disks`.
+
+### GCE Cost Savings
+
+During our migration to GCP, we found two major ways to cut back on our compute costs.
+
+#### Pre-emptible VMS
+
+The single biggest win we had was moving to all pre-emptible VMs. A pre-emptible VM, is one that GCP can claim back at any time, and will
+always be shut-down at 24 hours. This is how Google sells excess capacity, and claims it back when they need it. It is a great fit for 
+analysis workloads running between 1-24 hours, and the savings are big (80%). 
+
+You can mark a VM pre-emptible on VM creation *Create VM -> Management -> Availability Policy* and through the `glcoud` CLI.
+
+While creating them is easy, its worth having some automation around them to manage pre-emptions. In our pipline, we handle the pre-empted
+signal by polling the GCE API, then re-starting the workload in a new zone.
+
+#### Local SSDs
+
+Smaller impact and more complex, local SSDs give you the best disk performance at the lowest cost. That said, you need to perform some steps
+if you need a disk larger than 375GB and data will be completely transient. A VM with local SSDs cannot be restarted and all data there is
+lost. 
+
+They are a great way to both speed up and reduce cost of a completely transient workload.
+
+### Accessing HMF Data
+
  
 
 
