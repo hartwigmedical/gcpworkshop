@@ -36,11 +36,36 @@ Storage in the cloud is one of its most power tools and concepts. GCS is an obje
 
 The first time, its best to create a bucket via the console:
 
-![Create a bucket](https://github.com/hartwigmedical/gcpworkshop/images/)
+![Create a bucket](https://github.com/hartwigmedical/gcpworkshop/blob/master/images/storage-demo-1.png)
 
 Important concepts:
 * The region is where your bucket will be created. Best to pick a local region.
-* The storage class impacts how your data is stored. 
+* The storage class impacts how your data is stored. Standard will be used for frequently accessed data. Nearline and Coldine for less 
+accessed.
+* The access control can be per bucket or per file, normally per bucket is fine.
+* By default data in encrypted with Google's internal keys. Customer Managed Encryption is also available, but does carry a large 
+performance penalty.
+
+Create a bucket called `{yourname}-gcpdemo`.
+
+From there its best to move to the command line. After you've create your bucket, you can use the `gsutil` tool to upload, download, and
+copy data between buckets. Try the following:
+
+```
+touch myfile.txt
+gsutil cp myfile.txt gs://{yourname}-gcpdemo/
+gsutil ls gs://{yourname}-gcpdemo/
+```
+
+You can also browse your data from within the console. Find Storage in your console and you can see your new bucket and file there.
+
+You can share your data with other users using the Access Control List of the bucket. Adding users is easiest via the console, but can also be done with
+`gsutil`. Give it a try with your neighbour!
+
+### Google Compute Engine (GCE)
+
+GCE gives you the ability to create VMs, make images, and deploy containers. Next we'll create our own VM and learn how to access it via 
+SSH.
 
 
 
