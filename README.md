@@ -7,15 +7,13 @@ create a quick shell for more advances operations.
 
 Hit the following link to start up the console: https://console.cloud.google.com/
 
-### Projects and Users
+### Projects, Users and Roles
 
 When you begin in the console you'll notice that you are working within a *Project*. Project group together services and users along with 
 billing. Most of the time you'll work in a single project along with close colleagues, and you're interactions with GCP will be confined
 there.
 
 Good to note that a user can belong to many projects.
-
-### IAM
 
 IAM is used to organize users permissions. It uses the concepts of roles, which group permissions into cohesive abilities to perform tasks.
 
