@@ -32,7 +32,7 @@ default to the project you have open. It works by provisioning a small VM.
 Open a cloud shell and try the following:
 
 ```
-gcloud auth login
+gcloud auth list
 gsutil ls
 ```
 
@@ -69,14 +69,24 @@ copy data between buckets. Try the following:
 
 ```
 touch myfile.txt
-gsutil cp myfile.txt gs://{yourname}-gcpdemo/
+gsutil -m cp myfile.txt gs://{yourname}-gcpdemo/
 gsutil ls gs://{yourname}-gcpdemo/
+```
+
+The `-m` flag above will do the download in parallel. Keep in mind that this will be heavy on the bandwidth, but have a huge impact on the
+speed of your operation. You can also get things to go even faster by uploading data as a composite object (aka multipart). The following
+command will upload any file over 150M as a composite object, which also allows it to be downloaded as such. **Note**: You will not have an
+MD5 checksum if a file is uploaded as composite.
+
+```bash
+gsutil -m -o GSUtil:parallel_composite_upload_threshold=150M cp myfile.txt gs://{yourname}-gcpdemo/
 ```
 
 You can also browse your data from within the console. Find Storage in your console and you can see your new bucket and file there.
 
 You can share your data with other users using the Access Control List of the bucket. Adding users is easiest via the console, but can also 
-be done with `gsutil`. Give it a try with your neighbour!
+be done with `gsutil`. 
+
 
 ### Google Compute Engine (GCE)
 
@@ -108,7 +118,7 @@ The SSH button gives you a quick browser shell to the machine. Again, the browse
 into your VM from your own terminal:
 
 ```bash
-gcloud beta compute --project "your-project" ssh --zone "europe-west4-a" "your-vm"
+gcloud compute --project "your-project" ssh --zone "europe-west4-a" "your-vm"
 ```
 
 Try SSH'ing into your new VM and running the same `gsutil` commands we ran in the previous sections.
@@ -135,6 +145,8 @@ analysis workloads running between 1-24 hours, and the savings are big (80%).
 
 You can mark a VM pre-emptible on VM creation *Create VM -> Management -> Availability Policy* and through the `glcoud` CLI.
 
+TODO: screenshot of pre-emptible
+
 While creating them is easy, its worth having some automation around them to manage pre-emptions. In our pipline, we handle the pre-empted
 signal by polling the GCE API, then re-starting the workload in a new zone.
 
@@ -148,7 +160,102 @@ They are a great way to both speed up and reduce cost of a completely transient 
 
 ### Accessing HMF Data
 
- 
+The process around accessing data is still evolving, but we now have a process to make all our BAMs available which was previously 
+impossible. Given the size of the data, our key challenge is avoid any copying or duplication of the data. We do this by adding users 
+directly to the ACL of each file they have access, and providing a manifest containing the URLs and parseable metadata they can use to 
+download to a VM and organize appropriately.
+
+The manifest is also still evolving, but in its current form it looks like:
+
+```json
+{
+  "id": "example",
+  "tertiary": [
+    {
+      "gsutilUrl": "gs://hmf-dr-example/clinical.tar.gz",
+      "tags": {
+        "moleculetype": "DNA",
+        "datatype": "CLINICAL"
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "email": "user@google.com"
+    }
+  ],
+  "patients": [
+    {
+      "patientId": "COLO829v003",
+      "samples": [
+        {
+          "sampleId": "COLO829v003T",
+          "data": [
+            {
+              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003R/aligner/COLO829v003R.bam",
+              "tags": {
+                "moleculetype": "DNA",
+                "filetype": "BAM"
+              }
+            },
+            {
+              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003R/aligner/COLO829v003R.bam.bai",
+              "tags": {
+                "moleculetype": "DNA",
+                "filetype": "BAI"
+              }
+            },
+            {
+              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003T/aligner/COLO829v003T.bam",
+              "tags": {
+                "moleculetype": "DNA",
+                "filetype": "BAM"
+              }
+            },
+            {
+              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003T/aligner/COLO829v003T.bam.bai",
+              "tags": {
+                "moleculetype": "DNA",
+                "filetype": "BAI"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Downloading data outside of the `europe-west4` region carries a data egress cost of €0.11 per GB. We strongly recommend creating VMs close
+to the data to avoid this cost and time of download. That said, it is possible to download, but you must specify your own project in the
+`gsutil` command to do so. This is also necessary to download to a vm or another bucket, but you won't be charged anything if its in the
+same region. For example:
+
+```bash
+gsutil -u my-project gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003R/aligner/COLO829v003R.bam ./
+```
+
+### Scaling Analysis
+
+Running commands interactively can work for small workloads, but to get a real analysis done and really take advantage of GCP you'll want
+to automate provisioning many VMs to scale up. The general pattern for this is:
+* Create a VM with a predefined startup script.
+* Within the startup script, download the data you need
+* Within the startup script, run your analysis
+* Within the startup scrupt, upload the results to your own bucket
+* Terminate the VM
+
+For this purpose, we're creating a tool you can use to take advantage of all our GCP automation, cost savings and perfomance improvements
+called [Batch 5](https://github.com/hartwigmedical/pipeline5/blob/master/batch/README.md). Batch5 takes care of handling pre-emptible vms,
+setting up local ssds, managing failures, exposing logs, etc.
+
+We're also going to evaluate the Broad Institutes solution to this called [Terra](https://app.terra.bio/). Terra allows you to run pipelines
+via common worflow languages (WDL, CWL), but also create notebooks. It runs on GCP and is a joint project between Broad and Google.
+
+
+
+
 
 
 
