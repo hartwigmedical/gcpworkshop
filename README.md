@@ -126,10 +126,8 @@ Try SSH'ing into your new VM and running the same `gsutil` commands we ran in th
 Images are a handy way to save and share state of a VM. You can take an image on the command line by:
 
 ```bash
- gcloud images create ${sourceInstance}-$(date +%Y%m%d%H%M) --family=${sourceInstance} --source-disk=${sourceInstance} --source-disk-zone=${ZONE}"
+ gcloud images create my-instance-image-1 --family=my-instance-image --source-disk=my-instance-image --source-disk-zone=europe-west4"
 ```
-
-Or via the console through `Disks`.
 
 ### GCE Cost Savings
 
