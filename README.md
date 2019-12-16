@@ -145,7 +145,7 @@ analysis workloads running between 1-24 hours, and the savings are big (80%).
 
 You can mark a VM pre-emptible on VM creation *Create VM -> Management -> Availability Policy* and through the `glcoud` CLI.
 
-TODO: screenshot of pre-emptible
+![Make a pre-emptible VM](https://github.com/hartwigmedical/gcpworkshop/blob/master/images/compute-demo-3.png)
 
 While creating them is easy, its worth having some automation around them to manage pre-emptions. In our pipline, we handle the pre-empted
 signal by polling the GCE API, then re-starting the workload in a new zone.
