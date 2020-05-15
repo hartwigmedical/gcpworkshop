@@ -1,0 +1,43 @@
+{
+  "id": "colo829",
+  "data": [
+    {
+      "patientId": "COLO829",
+      "samples": [
+        {
+          "sampleId": "COLO829T",
+          "data": [
+            {
+              "gsutilUrl": "gs://nki-demo-data/COLO829R.cram",
+              "tags": [
+                "DNA",
+                "CRAM"
+              ]
+            },
+            {
+              "gsutilUrl": "gs://nki-demo-data/COLO829R.cram.crai",
+              "tags": [
+                "DNA",
+                "CRAI"
+              ]
+            },
+            {
+              "gsutilUrl": "gs://nki-demo-data/COLO829T.cram",
+              "tags": [
+                "DNA",
+                "CRAM"
+              ]
+            },
+            {
+              "gsutilUrl": "gs://nki-demo-data/COLO829T.cram.crai",
+              "tags": [
+                "DNA",
+                "CRAI"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -43,49 +43,6 @@ gcloud auth login
 gsutil ls
 ```
 
-### Google Cloud Storage (GCS)
-
-Storage in the cloud is one of its most power tools and concepts. GCS is an object storage system which works with buckets, paths and files.
-
-The first time, its best to create a bucket via the console:
-
-![Create a bucket](https://github.com/hartwigmedical/gcpworkshop/blob/master/images/storage-demo-1.png)
-
-Important concepts:
-* The region is where your bucket will be created. Best to pick a local region.
-* The storage class impacts how your data is stored. Standard will be used for frequently accessed data. Nearline and Coldine for less 
-accessed.
-* The access control can be per bucket or per file, normally per bucket is fine.
-* By default data in encrypted with Google's internal keys. Customer Managed Encryption is also available, but does carry a large 
-performance penalty.
-
-Create a bucket called `{yourname}-gcpdemo`. Bucket names have some restrictions: they must be globally unique; they must not have 
-underscores; they must be lower-case. This is because you can expose data via direct URL access and must conform to the rules of DNS.
-
-From there its best to move to the command line. After you've create your bucket, you can use the `gsutil` tool to upload, download, and
-copy data between buckets. Try the following:
-
-```
-touch myfile.txt
-gsutil -m cp myfile.txt gs://{yourname}-gcpdemo/
-gsutil ls gs://{yourname}-gcpdemo/
-```
-
-The `-m` flag above will do the download in parallel. Keep in mind that this will be heavy on the bandwidth, but have a huge impact on the
-speed of your operation. You can also get things to go even faster by uploading data as a composite object (aka multipart). The following
-command will upload any file over 150M as a composite object, which also allows it to be downloaded as such. **Note**: You will not have an
-MD5 checksum if a file is uploaded as composite.
-
-```bash
-gsutil -m -o GSUtil:parallel_composite_upload_threshold=150M cp myfile.txt gs://{yourname}-gcpdemo/
-```
-
-You can also browse your data from within the console. Find Storage in your console and you can see your new bucket and file there.
-
-You can share your data with other users using the Access Control List of the bucket. Adding users is easiest via the console, but can also 
-be done with `gsutil`. 
-
-
 ### Google Compute Engine (GCE)
 
 GCE gives you the ability to create VMs, make images, and deploy containers. Next we'll create our own VM and learn how to access it via 
@@ -101,6 +58,8 @@ Important Concepts:
 * You can define a disk when you define your VM, but this can also be done independently, and read-only disks can be shared.
 * Inside the VM, service interactions are performed by the project service account. A service account can run headless, but otherwise has
 permissions just like a normal user. 
+
+Let's create one now with a 100GB disk.
 
 You can also create and manage vms via the command line. 
 
@@ -119,7 +78,11 @@ into your VM from your own terminal:
 gcloud compute --project "your-project" ssh --zone "europe-west4-a" "your-vm"
 ```
 
-Try SSH'ing into your new VM and running the same `gsutil` commands we ran in the previous sections.
+Try SSH'ing into your new VM via the terminal with the gcloud command.
+
+#### Install Miniconda and Samtools 
+
+# TODO TOM: Add miniconda install instructions here and what you had in mind for samtools 
 
 ### Images
 
@@ -154,100 +117,65 @@ lost.
 
 They are a great way to both speed up and reduce cost of a completely transient workload.
 
-### Accessing HMF Data
 
-The process around accessing data is still evolving, but we now have a process to make all our BAMs available which was previously 
-impossible. Given the size of the data, our key challenge is avoid any copying or duplication of the data. We do this by adding users 
-directly to the ACL of each file they have access, and providing a manifest containing the URLs and parseable metadata they can use to 
-download to a VM and organize appropriately.
+### Google Cloud Storage (GCS)
 
-The manifest is also still evolving, but in its current form it looks like:
+Storage in the cloud is one of its most powerful tools and concepts. GCS is an object storage system which works with buckets, paths and files.
 
-```json
-{
-  "id": "example",
-  "tertiary": [
-    {
-      "gsutilUrl": "gs://hmf-dr-example/clinical.tar.gz",
-      "tags": {
-        "moleculetype": "DNA",
-        "datatype": "CLINICAL"
-      }
-    }
-  ],
-  "accounts": [
-    {
-      "email": "user@google.com"
-    }
-  ],
-  "patients": [
-    {
-      "patientId": "COLO829v003",
-      "samples": [
-        {
-          "sampleId": "COLO829v003T",
-          "data": [
-            {
-              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003R/aligner/COLO829v003R.bam",
-              "tags": {
-                "moleculetype": "DNA",
-                "filetype": "BAM"
-              }
-            },
-            {
-              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003R/aligner/COLO829v003R.bam.bai",
-              "tags": {
-                "moleculetype": "DNA",
-                "filetype": "BAI"
-              }
-            },
-            {
-              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003T/aligner/COLO829v003T.bam",
-              "tags": {
-                "moleculetype": "DNA",
-                "filetype": "BAM"
-              }
-            },
-            {
-              "gsutilUrl": "gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003T/aligner/COLO829v003T.bam.bai",
-              "tags": {
-                "moleculetype": "DNA",
-                "filetype": "BAI"
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+#### Creating a Bucket
+The first time, its best to create a bucket via the console:
+
+![Create a bucket](https://github.com/hartwigmedical/gcpworkshop/blob/master/images/storage-demo-1.png)
+
+Important concepts:
+* The region is where your bucket will be created. Best to pick a local region.
+* The storage class impacts how your data is stored. Standard will be used for frequently accessed data. Nearline and Coldine for less 
+accessed.
+* The access control can be per bucket or per file, normally per bucket is fine.
+* By default data in encrypted with Google's internal keys. Customer Managed Encryption is also available, which we leverage to ensure no 
+one can access our other than those we enable on the ACL. 
+
+Create a bucket called `{yourname}-gcpdemo`. Bucket names have some restrictions: they must be globally unique; they should not have 
+underscores; they must be lower-case. This is because you can expose data via direct URL access and must conform to the rules of DNS.
+
+From there its best to move to the command line. After you've create your bucket, you can use the `gsutil` tool to upload, download, and
+copy data between buckets.  
+
+```
+touch myfile.txt
+gsutil -m cp myfile.txt gs://{yourname}-gcpdemo/
+gsutil ls gs://{yourname}-gcpdemo/
 ```
 
-Downloading data outside of the `europe-west4` region carries a data egress cost of €0.11 per GB. We strongly recommend creating VMs close
-to the data to avoid this cost and time of download. That said, it is possible to download, but you must specify your own project in the
-`gsutil` command to do so. This is also necessary to download to a vm or another bucket, but you won't be charged anything if its in the
-same region. For example:
+The `-m` flag above will do the download in parallel. Keep in mind that this will be heavy on the bandwidth, but have a huge impact on the
+speed of your operation. You can also get things to go even faster by uploading data as a composite object (aka multipart). The following
+command will upload any file over 150M as a composite object, which also allows it to be downloaded as such. **Note**: You will not have an
+MD5 checksum if a file is uploaded as composite.
 
 ```bash
-gsutil -u my-project gs://hmf-output-test/COLO_VALIDATION_5_7_1314/COLO829v003R/aligner/COLO829v003R.bam ./
+gsutil -m -o GSUtil:parallel_composite_upload_threshold=150M cp myfile.txt gs://{yourname}-gcpdemo/
 ```
 
-### Scaling Analysis
+You can also browse your data from within the console. Find Storage in your console and you can see your new bucket and file there.
 
-Running commands interactively can work for small workloads, but to get a real analysis done and really take advantage of GCP you'll want
-to automate provisioning many VMs to scale up. The general pattern for this is:
-* Create a VM with a predefined startup script.
-* Within the startup script, download the data you need
-* Within the startup script, run your analysis
-* Within the startup scrupt, upload the results to your own bucket
-* Terminate the VM
+You can share your data with other users using the Access Control List of the bucket. Adding users is easiest via the console, but can also 
+be done with `gsutil`. 
 
-For this purpose, we're creating a tool you can use to take advantage of all our GCP automation, cost savings and perfomance improvements
-called [Batch 5](https://github.com/hartwigmedical/pipeline5/blob/master/batch/README.md). Batch5 takes care of handling pre-emptible vms,
-setting up local ssds, managing failures, exposing logs, etc.
+### Accessing HMF data
 
-We're also going to evaluate the Broad Institutes solution to this called [Terra](https://app.terra.bio/). Terra allows you to run pipelines
-via common worflow languages (WDL, CWL), but also create notebooks. It runs on GCP and is a joint project between Broad and Google.
+- SSH into your VM
+- Log in as yourself with gcloud auth 
+- A little about service accounts and personal accounts
+- Download the manifest.json 
+- Grab the URL 
+# TODO TOM: Add cram slicing code here
+- Upload the results back to your bucket for later
+- Shutdown the VM
+- A little about persistent disks
+- Delete the VM.
+
+
+ 
 
 
 
