@@ -7,7 +7,7 @@ create a quick shell for more advances operations.
 
 Hit the following link to start up the console: https://console.cloud.google.com/
 
-### Projects, Users and Roles
+### Projects, Users, Roles and Service Accounts
 
 When you begin in the console you'll notice that you are working within a *Project*. Project group together services and users along with 
 billing. Most of the time you'll work in a single project along with close colleagues, and you're interactions with GCP will be confined
@@ -19,6 +19,9 @@ IAM is used to organize users permissions. It uses the concepts of roles, which 
 
 Unfortunately there are a lot of roles, and its not always clear how they map to a give permission. 
 [This page](https://cloud.google.com/iam/docs/understanding-roles) gives the overview of how roles map to permissions.
+
+Service Accounts are an important concept and become useful when you want automate and scale. A service account can be used as a proxy to 
+your end user credentials, to use GCP services via a private key rather than an explicit login. t
 
 ### Using the command line
 
@@ -63,7 +66,7 @@ Let's create one now with a 100GB disk.
 
 You can also create and manage vms via the command line. 
 
-```bash
+```shell script
 gcloud instances create my-instance --zone=europe-west4-a --boot-disk-size 100
 ```
 
@@ -74,7 +77,7 @@ The [VM instance overview](https://console.cloud.google.com/compute/instances) i
 The SSH button gives you a quick browser shell to the machine. Again, the browser has its limitations, so sometimes it's better to tunnel 
 into your VM from your own terminal:
 
-```bash
+```shell script
 gcloud compute --project "your-project" ssh --zone "europe-west4-a" "your-vm"
 ```
 
@@ -82,7 +85,7 @@ Try SSH'ing into your new VM via the terminal with the gcloud command.
 
 #### Install Miniconda and Samtools 
 We need to initialize the system so that we have access to bioinformatics tools, therefore we will install Miniconda on the VM. Walk through the instructions for installing and adding the updating you PATH information.
-```bash
+```shell script
 # Copy Miniconda installer from the workshop bucket & install
 gsutil -u nki-atlas cp gs://nki-demo-data/Miniconda3-latest-Linux-x86_64.sh ./
 bash Miniconda3-latest-Linux-x86_64.sh
@@ -94,44 +97,11 @@ source .bashrc
 conda install -y -c bioconda samtools fastqc
 ```
 
-Next we will download the cell line CRAM file to the VM for downstream processing.  
-```bash
-# Speed up download using gsutil parameters
-gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829T.cram ./
-
-# Download CRAM index
-gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829T.cram.crai ./
-```
-
-In this exercise we want to slice out a region of the mapped reads, specifically the HLA regions. Therefore we can run the following samtools command to extract a particular set of read coordinates. 
-```bash
-# Get mapping statistics
-samtools flagstat COLO829T.cram
-
-# Next slice out the reads for an HLA region on chromosome 6.
-samtools view -b COLO829T.cram 6:29909037-29913661 > COLO829T.sliced.bam
-```
-
-After extracting the alignments we can run a quality analysis of the output using fastqc.
-```bash
-fastqc -o ./ -f bam COLO829T.sliced.bam
-```
-
-With access to the Anaconda package repository, there are many different anlayses you can perform on the data. Next we need to download the output data to our bucket so we can view and use it locally. 
-```bash
-# Copy the sliced BAM data to your bucket
-gsutil -m cp COLO829T.sliced.bam gs://{yourname}-gcpdemo
-
-# Copy the FastQC report to your bucket
-gsutil -m cp COLO829T.sliced.html gs://{yourname}-gcpdemo
-gsutil -m cp COLO829T.sliced.zip gs://{yourname}-gcpdemo
-```
-
 ### Images
 
 Images are a handy way to save and share state of a VM. You can take an image on the command line by:
 
-```bash
+```shell script
  gcloud images create my-instance-image-1 --family=my-instance-image --source-disk=my-instance-image --source-disk-zone=europe-west4"
 ```
 
@@ -195,7 +165,7 @@ speed of your operation. You can also get things to go even faster by uploading 
 command will upload any file over 150M as a composite object, which also allows it to be downloaded as such. **Note**: You will not have an
 MD5 checksum if a file is uploaded as composite.
 
-```bash
+```shell script
 gsutil -m -o GSUtil:parallel_composite_upload_threshold=150M cp myfile.txt gs://{yourname}-gcpdemo/
 ```
 
@@ -206,14 +176,70 @@ be done with `gsutil`.
 
 ### Accessing HMF data
 
-- SSH into your VM
-- Log in as yourself with gcloud auth 
-- A little about service accounts and personal accounts
+HMF's raw data is stored in GCS in CRAM format. To avoid having to duplicate the data for different requesters we use object access control
+lists to share data in place.
+
+First, SSH into the VM you created earlier from a terminal or cloud shell using `gcloud`
+
+```shell script
+gcloud compute --project "nki-atlas" ssh --zone "europe-west4-a" "your-vm"
+```
+
+To access HMF data you'll have to login. By default your VM will use a service account, in this case we'll want to use your personal account
+to log in. Do so with:
+
+```shell script
+gcloud auth login
+```
+
+HMF allows you to access the data with an approved service account as well, and that would be the normal access pattern. 
+
+When a data request is approved, we create a bucket for you with a file called `manifest.json`. The manifest contains a list of all files 
+for which the requester has been granted access as GCS urls. Download the manifest for this workshop like so:
+
+```shell script
+gsutil -u nki-atlas cp gs://nki-demo-data/manifest.json ./
+```
+
+You'll notice in this `gsutil` command we used the `-u nki-atlas`. Data we provide externally are stored *requester pays* buckets. With a 
+requester pays bucket the requester will be billed for any egress costs (0.12 GB), and this argument specifies the billing project. There
+is no egress cost to download the data to a VM in the Netherlands, but you still need to specify the billing project. 
+
+Open the manifest in the editor of your choice. There you'll see the GCS urls mentioned earlier. Copy the url for the reference cram and 
+the corresponding crai and copy them down to the VM with gsutil.
+
+In this exercise we want to slice out a region of the mapped reads, specifically the HLA regions. Therefore we can run the following samtools 
+command to extract a particular set of read coordinates. 
+```shell script
+# Get mapping statistics
+samtools flagstat COLO829T.cram
+
+# Next slice out the reads for an HLA region on chromosome 6.
+samtools view -b COLO829T.cram 6:29909037-29913661 > COLO829T.sliced.bam
+```
+
+After extracting the alignments we can run a quality analysis of the output using fastqc.
+```shell script
+fastqc -o ./ -f bam COLO829T.sliced.bam
+```
+
+With access to the Anaconda package repository, there are many different analyses you can perform on the data. Next we need to download 
+the output data to our bucket so we can view and use it locally. 
+```shell script
+# Copy the sliced BAM data to your bucket
+gsutil -m cp COLO829T.sliced.bam gs://{yourname}-gcpdemo
+
+# Copy the FastQC report to your bucket
+gsutil -m cp COLO829T.sliced.html gs://{yourname}-gcpdemo
+gsutil -m cp COLO829T.sliced.zip gs://{yourname}-gcpdemo
+```
+
+
 - Download the manifest.json 
 - Grab the URL 
 
 #### Slicing the unmapped reads of the CRAM files
-```bash
+```shell script
 # Download CRAM file?
 gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829R.cram ./
 
@@ -221,10 +247,7 @@ gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829R.cram ./
 samtools view -f 12 --output-fmt BAM --threads 2 -o COLO829R.unmapped.bam COLO829R.cram
 ```
 
-- Upload the results back to your bucket for later
-- Shutdown the VM
-- A little about persistent disks
-- Delete the VM.
+
 
 
  
