@@ -81,8 +81,51 @@ gcloud compute --project "your-project" ssh --zone "europe-west4-a" "your-vm"
 Try SSH'ing into your new VM via the terminal with the gcloud command.
 
 #### Install Miniconda and Samtools 
+We need to initialize the system so that we have access to bioinformatics tools, therefore we will install Miniconda on the VM. Walk through the instructions for installing and adding the updating you PATH information.
+```bash
+# Copy Miniconda installer from the workshop bucket & install
+gsutil -u nki-atlas cp gs://nki-demo-data/Miniconda3-latest-Linux-x86_64.sh ./
+bash Miniconda3-latest-Linux-x86_64.sh
 
-# TODO TOM: Add miniconda install instructions here and what you had in mind for samtools 
+# After installation re-initialize your PATH
+source .bashrc
+
+# Install samtools using conda
+conda install -y -c bioconda samtools fastqc
+```
+
+Next we will download the cell line CRAM file to the VM for downstream processing.  
+```bash
+# Speed up download using gsutil parameters
+gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829T.cram ./
+
+# Download CRAM index
+gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829T.cram.crai ./
+```
+
+In this exercise we want to slice out a region of the mapped reads, specifically the HLA regions. Therefore we can run the following samtools command to extract a particular set of read coordinates. 
+```bash
+# Get mapping statistics
+samtools flagstat COLO829T.cram
+
+# Next slice out the reads for an HLA region on chromosome 6.
+samtools view -b COLO829T.cram 6:29909037-29913661 > COLO829T.sliced.bam
+```
+
+After extracting the alignments we can run a quality analysis of the output using fastqc.
+```bash
+fastqc -o ./ -f bam COLO829T.sliced.bam
+```
+
+With access to the Anaconda package repository, there are many different anlayses you can perform on the data. Next we need to download the output data to our bucket so we can view and use it locally. 
+```bash
+# Copy the sliced BAM data to your bucket
+gsutil -m cp COLO829T.sliced.bam gs://{yourname}-gcpdemo
+
+# Copy the FastQC report to your bucket
+gsutil -m cp COLO829T.sliced.html gs://{yourname}-gcpdemo
+gsutil -m cp COLO829T.sliced.zip gs://{yourname}-gcpdemo
+```
 
 ### Images
 
@@ -168,7 +211,16 @@ be done with `gsutil`.
 - A little about service accounts and personal accounts
 - Download the manifest.json 
 - Grab the URL 
-# TODO TOM: Add cram slicing code here
+
+#### Slicing the unmapped reads of the CRAM files
+```bash
+# Download CRAM file?
+gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829R.cram ./
+
+# Extract the paired unmapped reads and output in BAM format
+samtools view -f 12 --output-fmt BAM --threads 2 -o COLO829R.unmapped.bam COLO829R.cram
+```
+
 - Upload the results back to your bucket for later
 - Shutdown the VM
 - A little about persistent disks
