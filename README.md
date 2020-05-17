@@ -9,19 +9,20 @@ Hit the following link to start up the console: https://console.cloud.google.com
 
 ### Projects, Users, Roles and Service Accounts
 
-When you begin in the console you'll notice that you are working within a *Project*. Project group together services and users along with 
-billing. Most of the time you'll work in a single project along with close colleagues, and you're interactions with GCP will be confined
-there.
+When you begin in the console you'll notice that you are working within a *Project*. Projects group together services and users along with 
+billing. Projects are a handy way to organize resources around groups of users with similar permissions and goals. We recommend taking a
+modular approach when it comes to projects, many small cohesive ones over a single monolith. Good to note that a user can belong to many 
+projects.
 
-Good to note that a user can belong to many projects.
-
-IAM is used to organize users permissions. It uses the concepts of roles, which group permissions into cohesive abilities to perform tasks.
-
-Unfortunately there are a lot of roles, and its not always clear how they map to a give permission. 
+IAM policies are used to organize users permissions. It uses the concepts of roles, which group permissions into cohesive abilities to 
+perform tasks. There are many roles, and you can even define custom ones when you don't have the right combination out of the box. An IAM 
+policy can be applied to any resources: a project; a VM; a network; a bucket; etc.
 [This page](https://cloud.google.com/iam/docs/understanding-roles) gives the overview of how roles map to permissions.
 
 Service Accounts are an important concept and become useful when you want automate and scale. A service account can be used as a proxy to 
-your end user credentials, to use GCP services via a private key rather than an explicit login. t
+your end user credentials, to use GCP services via a private key rather than an explicit login. This has a variety of applications, from
+daisy chaining services to perform more complex task (ie a VM which accesses storage) or to launch hundreds of VMs without the need for 
+human interaction.
 
 ### Using the command line
 
@@ -78,10 +79,22 @@ The SSH button gives you a quick browser shell to the machine. Again, the browse
 into your VM from your own terminal:
 
 ```shell script
-gcloud compute --project "your-project" ssh --zone "europe-west4-a" "your-vm"
+gcloud compute --project "nki-atlas" ssh --zone "europe-west4-a" "your-vm"
 ```
 
 Try SSH'ing into your new VM via the terminal with the gcloud command.
+
+#### Virtual Private Cloud Networking
+
+When working with sensitive data you most likely do not want your VM exposed anywhere on the public internet. ![VPC networking]https://cloud.google.com/vpc 
+provides you the ability to create a completely private network for all your VMs. We won't go into the details today, but the simplest way
+you can protect your vms is to disable its public IP. 
+
+```shell script
+gcloud compute --project "nki-atlas" ssh --zone "europe-west4-a" --no-address "{yourname}-vm" 
+```
+
+Or via the Network tab in the console instance creation page.
 
 #### Install Miniconda and Samtools 
 We need to initialize the system so that we have access to bioinformatics tools, therefore we will install Miniconda on the VM. Walk through the instructions for installing and adding the updating you PATH information.
@@ -97,13 +110,27 @@ source .bashrc
 conda install -y -c bioconda samtools fastqc
 ```
 
+### Stop the VM
+
+Navigate back to the console and go to Compute Engine. Select your VM and stop it from the toolbar. You'll noticed the VM is now stopped
+but still in the list. *This VM still accrues storage cost*. The disk is still stored such that when you start it again, all the state is
+maintained.
+
 ### Images
 
 Images are a handy way to save and share state of a VM. You can take an image on the command line by:
 
 ```shell script
- gcloud images create my-instance-image-1 --family=my-instance-image --source-disk=my-instance-image --source-disk-zone=europe-west4"
+ gcloud compute images create {yourname}-image-1 --family={yourname}-image --source-disk={yourname}-vm --source-disk-zone=europe-west4 --storage-location=europe-west4
 ```
+
+### Delete the VM
+
+Since we've stored no data and created an image, we can now delete the vm:
+
+```shell script
+gcloud compute instances delete 
+``` 
 
 ### GCE Cost Savings
 
@@ -124,12 +151,10 @@ signal by polling the GCE API, then re-starting the workload in a new zone.
 
 #### Local SSDs
 
-Smaller impact and more complex, local SSDs give you the best disk performance at the lowest cost. That said, you need to perform some steps
-if you need a disk larger than 375GB and data will be completely transient. A VM with local SSDs cannot be restarted and all data there is
-lost. 
+Local SSDs give you the best disk performance at the lowest cost. That said, you need to perform some steps if you need a disk larger than 
+375GB and data will be completely transient. A VM with local SSDs cannot be restarted and all data there is lost. 
 
 They are a great way to both speed up and reduce cost of a completely transient workload.
-
 
 ### Google Cloud Storage (GCS)
 
@@ -144,12 +169,13 @@ Important concepts:
 * The region is where your bucket will be created. Best to pick a local region.
 * The storage class impacts how your data is stored. Standard will be used for frequently accessed data. Nearline and Coldine for less 
 accessed.
-* The access control can be per bucket or per file, normally per bucket is fine.
+* The access control can be per bucket or per object, more on that later/
 * By default data in encrypted with Google's internal keys. Customer Managed Encryption is also available, which we leverage to ensure no 
 one can access our other than those we enable on the ACL. 
 
-Create a bucket called `{yourname}-gcpdemo`. Bucket names have some restrictions: they must be globally unique; they should not have 
-underscores; they must be lower-case. This is because you can expose data via direct URL access and must conform to the rules of DNS.
+Create a standard storage bucket called `{yourname}-gcpdemo` in europe-west4, with object level access control and Google encryption. 
+Bucket names have some restrictions: they must be globally unique; they should not have underscores; they must be lower-case. 
+This is because you can expose data via direct URL access and must conform to the rules of DNS.
 
 From there its best to move to the command line. After you've create your bucket, you can use the `gsutil` tool to upload, download, and
 copy data between buckets.  
@@ -171,28 +197,44 @@ gsutil -m -o GSUtil:parallel_composite_upload_threshold=150M cp myfile.txt gs://
 
 You can also browse your data from within the console. Find Storage in your console and you can see your new bucket and file there.
 
-You can share your data with other users using the Access Control List of the bucket. Adding users is easiest via the console, but can also 
-be done with `gsutil`. 
+Access to a bucket can controlled how we've done it or as an IAM policy on the bucket. Try the following commands to see the difference:
+
+```shell script
+# Object ACLs on your new bucket
+gsutil acl get gs://{yourname}-gcpdemo/myfile.txt
+# Bucket policy no our demo bucket 
+gsutil -u nki-atlas iam get gs://nki-demo-data
+```
+
+Object ACLs have 3 permissions: READER, WRITER and OWNER. IAM policies can be any number of role bindings, giving much more flexibility and
+specificity in access. 
 
 ### Accessing HMF data
 
-HMF's raw data is stored in GCS in CRAM format. To avoid having to duplicate the data for different requesters we use object access control
-lists to share data in place.
+HMF's raw data is stored in GCS in CRAM format. We give requesters permissions directly on the data rather than making copies to prevent
+costly duplication. Currently we grant these permissions via ACLs as our buckets contain more than one patient's data. 
 
-First, SSH into the VM you created earlier from a terminal or cloud shell using `gcloud`
+In this final exercise, we'll download some HMF cell line data to a VM, perform an operation, then copy our results back to GCS. We see this
+as a common pattern, as it avoids any egress cost, is fast, and can be scaled horizontally.
+
+Find the image you created earlier in the console and create a new VM instance based on it (hint, the console offers a quick way of doing
+this from the instances page).  
+
+To access HMF data for the demo you'll have to login as your own account. Do a quick list of authorized users:
 
 ```shell script
-gcloud compute --project "nki-atlas" ssh --zone "europe-west4-a" "your-vm"
+gcloud auth list
 ```
 
-To access HMF data you'll have to login. By default your VM will use a service account, in this case we'll want to use your personal account
-to log in. Do so with:
+By default your VM will use a service account. You can apply to allow a service account access to your data request given that it is 
+only accessible to users listed in the agreement. Run the login command to authenticate as yourself.
 
 ```shell script
 gcloud auth login
 ```
 
-HMF allows you to access the data with an approved service account as well, and that would be the normal access pattern. 
+HMF allows you to access the data with an approved service account as well. An approved service account should only be accessible by the
+user 
 
 When a data request is approved, we create a bucket for you with a file called `manifest.json`. The manifest contains a list of all files 
 for which the requester has been granted access as GCS urls. Download the manifest for this workshop like so:
@@ -206,7 +248,8 @@ requester pays bucket the requester will be billed for any egress costs (0.12 GB
 is no egress cost to download the data to a VM in the Netherlands, but you still need to specify the billing project. 
 
 Open the manifest in the editor of your choice. There you'll see the GCS urls mentioned earlier. Copy the url for the reference cram and 
-the corresponding crai and copy them down to the VM with gsutil.
+the corresponding crai and copy them down to the VM with `gsutil`. See if you can create the command yourself (tip you'll definitely want
+to use `-m` on this one!)
 
 In this exercise we want to slice out a region of the mapped reads, specifically the HLA regions. Therefore we can run the following samtools 
 command to extract a particular set of read coordinates. 
@@ -223,7 +266,7 @@ After extracting the alignments we can run a quality analysis of the output usin
 fastqc -o ./ -f bam COLO829T.sliced.bam
 ```
 
-With access to the Anaconda package repository, there are many different analyses you can perform on the data. Next we need to download 
+With access to the Anaconda package repository, there are many different analyses you can perform on the data. Next we need to upload 
 the output data to our bucket so we can view and use it locally. 
 ```shell script
 # Copy the sliced BAM data to your bucket
@@ -234,21 +277,7 @@ gsutil -m cp COLO829T.sliced.html gs://{yourname}-gcpdemo
 gsutil -m cp COLO829T.sliced.zip gs://{yourname}-gcpdemo
 ```
 
-
-- Download the manifest.json 
-- Grab the URL 
-
-#### Slicing the unmapped reads of the CRAM files
-```shell script
-# Download CRAM file?
-gsutil -m -u nki-atlas cp gs://nki-demo-data/COLO829R.cram ./
-
-# Extract the paired unmapped reads and output in BAM format
-samtools view -f 12 --output-fmt BAM --threads 2 -o COLO829R.unmapped.bam COLO829R.cram
-```
-
-
-
+That's it! Your data is now saved to GCS so you can terminate and delete the VM. 
 
  
 
