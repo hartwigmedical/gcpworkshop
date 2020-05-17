@@ -86,7 +86,7 @@ Try SSH'ing into your new VM via the terminal with the gcloud command.
 
 #### Virtual Private Cloud Networking
 
-When working with sensitive data you most likely do not want your VM exposed anywhere on the public internet. ![VPC networking]https://cloud.google.com/vpc 
+When working with sensitive data you most likely do not want your VM exposed anywhere on the public internet. ![VPC networking](https://cloud.google.com/vpc) 
 provides you the ability to create a completely private network for all your VMs. We won't go into the details today, but the simplest way
 you can protect your vms is to disable its public IP. 
 
