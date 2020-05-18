@@ -68,7 +68,7 @@ Let's create one now with a 100GB disk.
 You can also create and manage vms via the command line. 
 
 ```shell script
-gcloud instances create my-instance --zone=europe-west4-a --boot-disk-size 100
+gcloud compute instances create {yourname}-instance --zone=europe-west4-a --boot-disk-size 100 --machine-type=n1-standard-2
 ```
 
 The [VM instance overview](https://console.cloud.google.com/compute/instances) in the console is a nice way to see the status of all VMs:
@@ -79,7 +79,7 @@ The SSH button gives you a quick browser shell to the machine. Again, the browse
 into your VM from your own terminal:
 
 ```shell script
-gcloud compute --project "nki-atlas" ssh --zone "europe-west4-a" "your-vm"
+gcloud compute --project "nki-atlas" ssh --zone "europe-west4-a" "{yourname}-vm"
 ```
 
 Try SSH'ing into your new VM via the terminal with the gcloud command.
@@ -100,21 +100,27 @@ Or via the Network tab in the console instance creation page.
 We need to initialize the system so that we have access to bioinformatics tools, therefore we will install Miniconda on the VM. Walk through the instructions for installing and adding the updating you PATH information.
 ```shell script
 # Copy Miniconda installer from the workshop bucket & install
-gsutil -u nki-atlas cp gs://nki-demo-data/Miniconda3-latest-Linux-x86_64.sh ./
+curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
+# Install Miniconda
+## 1. Hit [Enter] to begin
+## 2. Hit 'q' to skip to bottom and type 'yes' 
+## 3. Hit [Enter] to confirm installation path
+## 4. Type 'yes' to run initializations 
 bash Miniconda3-latest-Linux-x86_64.sh
 
 # After installation re-initialize your PATH
 source .bashrc
 
+# Set up conda environment
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
 # Install samtools using conda
-conda install -y -c bioconda samtools fastqc
+conda install -y samtools=1.10
+conda install -y fastqc
 ```
-
-### Stop the VM
-
-Navigate back to the console and go to Compute Engine. Select your VM and stop it from the toolbar. You'll noticed the VM is now stopped
-but still in the list. *This VM still accrues storage cost*. The disk is still stored such that when you start it again, all the state is
-maintained.
 
 ### Images
 
@@ -123,14 +129,6 @@ Images are a handy way to save and share state of a VM. You can take an image on
 ```shell script
  gcloud compute images create {yourname}-image-1 --family={yourname}-image --source-disk={yourname}-vm --source-disk-zone=europe-west4 --storage-location=europe-west4
 ```
-
-### Delete the VM
-
-Since we've stored no data and created an image, we can now delete the vm:
-
-```shell script
-gcloud compute instances delete 
-``` 
 
 ### GCE Cost Savings
 
@@ -202,7 +200,7 @@ Access to a bucket can controlled how we've done it or as an IAM policy on the b
 ```shell script
 # Object ACLs on your new bucket
 gsutil acl get gs://{yourname}-gcpdemo/myfile.txt
-# Bucket policy no our demo bucket 
+# Bucket policy to our demo bucket 
 gsutil -u nki-atlas iam get gs://nki-demo-data
 ```
 
@@ -220,7 +218,7 @@ as a common pattern, as it avoids any egress cost, is fast, and can be scaled ho
 Find the image you created earlier in the console and create a new VM instance based on it (hint, the console offers a quick way of doing
 this from the instances page).  
 
-To access HMF data for the demo you'll have to login as your own account. Do a quick list of authorized users:
+To access HMF data for the demo you'll have to login as your own account in the VM. Do a quick list of authorized users:
 
 ```shell script
 gcloud auth list
@@ -247,47 +245,49 @@ You'll notice in this `gsutil` command we used the `-u nki-atlas`. Data we provi
 requester pays bucket the requester will be billed for any egress costs (0.12 GB), and this argument specifies the billing project. There
 is no egress cost to download the data to a VM in the Netherlands, but you still need to specify the billing project. 
 
-Open the manifest in the editor of your choice. There you'll see the GCS urls mentioned earlier. Copy the url for the reference cram and 
+View the content of the JSON file.
+```shell script
+cat manifest.json
+```
+
+There you'll see the GCS urls mentioned earlier. Copy the url for the reference cram and 
 the corresponding crai and copy them down to the VM with `gsutil`. See if you can create the command yourself (tip you'll definitely want
 to use `-m` on this one!)
+
+**Note:** If you do not need access to the raw CRAM files and need only the processed genomics data, you can download the `manifest.json` file directly and copy the url to download the necessary folder instead of placing the data first in a VM. 
 
 In this exercise we want to slice out a region of the mapped reads, specifically the HLA regions. Therefore we can run the following samtools 
 command to extract a particular set of read coordinates. 
 ```shell script
 # Get mapping statistics
-samtools flagstat COLO829T.cram
+samtools index COLO829R.cram
+samtools flagstat COLO829R.cram
 
 # Next slice out the reads for an HLA region on chromosome 6.
-samtools view -b COLO829T.cram 6:29909037-29913661 > COLO829T.sliced.bam
+samtools view -b COLO829R.cram 6:29909037-29913661 > COLO829R.sliced.bam
 ```
 
 After extracting the alignments we can run a quality analysis of the output using fastqc.
 ```shell script
-fastqc -o ./ -f bam COLO829T.sliced.bam
+fastqc -o ./ -f bam COLO829R.sliced.bam
 ```
 
 With access to the Anaconda package repository, there are many different analyses you can perform on the data. Next we need to upload 
 the output data to our bucket so we can view and use it locally. 
 ```shell script
 # Copy the sliced BAM data to your bucket
-gsutil -m cp COLO829T.sliced.bam gs://{yourname}-gcpdemo
+gsutil -m cp COLO829R.sliced.bam gs://{yourname}-gcpdemo
 
 # Copy the FastQC report to your bucket
-gsutil -m cp COLO829T.sliced.html gs://{yourname}-gcpdemo
-gsutil -m cp COLO829T.sliced.zip gs://{yourname}-gcpdemo
+gsutil -m cp COLO829R.sliced.cram_fastqc.html gs://{yourname}-gcpdemo
 ```
+That's it! Your data is now saved to GCS so you can stop or delete the VM. 
 
-That's it! Your data is now saved to GCS so you can terminate and delete the VM. 
+### Stop the VM
 
- 
-
-
-
-
-
-
-
-
+Navigate back to the console and go to Compute Engine. Select your VM and stop it from the toolbar. You'll noticed the VM is now stopped
+but still in the list. *This VM still accrues storage cost*. The disk is still stored such that when you start it again, all the state is
+maintained.
 
 
 
