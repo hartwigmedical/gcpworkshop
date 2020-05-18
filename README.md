@@ -63,12 +63,12 @@ Important Concepts:
 * Inside the VM, service interactions are performed by the project service account. A service account can run headless, but otherwise has
 permissions just like a normal user. 
 
-Let's create one now with a 100GB disk.
+Let's create one now with a 150GB disk.
 
 You can also create and manage vms via the command line. 
 
 ```shell script
-gcloud compute instances create {yourname}-instance --zone=europe-west4-a --boot-disk-size 100 --machine-type=n1-standard-2
+gcloud compute instances create {yourname}-instance --zone=europe-west4-a --boot-disk-size 150 --machine-type=n1-standard-2
 ```
 
 The [VM instance overview](https://console.cloud.google.com/compute/instances) in the console is a nice way to see the status of all VMs:
@@ -260,7 +260,6 @@ In this exercise we want to slice out a region of the mapped reads, specifically
 command to extract a particular set of read coordinates. 
 ```shell script
 # Get mapping statistics
-samtools index COLO829R.cram
 samtools flagstat COLO829R.cram
 
 # Next slice out the reads for an HLA region on chromosome 6.
@@ -272,8 +271,7 @@ After extracting the alignments we can run a quality analysis of the output usin
 fastqc -o ./ -f bam COLO829R.sliced.bam
 ```
 
-With access to the Anaconda package repository, there are many different analyses you can perform on the data. Next we need to upload 
-the output data to our bucket so we can view and use it locally. 
+Next we need to upload the output data to our bucket so we can view and use it locally. 
 ```shell script
 # Copy the sliced BAM data to your bucket
 gsutil -m cp COLO829R.sliced.bam gs://{yourname}-gcpdemo
@@ -281,6 +279,9 @@ gsutil -m cp COLO829R.sliced.bam gs://{yourname}-gcpdemo
 # Copy the FastQC report to your bucket
 gsutil -m cp COLO829R.sliced.cram_fastqc.html gs://{yourname}-gcpdemo
 ```
+
+With access to the Anaconda package repository, there are many different analyses you can perform on the data. Try to list the other files in the workshop bucket and download them the the VM. 
+
 That's it! Your data is now saved to GCS so you can stop or delete the VM. 
 
 ### Stop the VM
