@@ -289,5 +289,21 @@ Navigate back to the console and go to Compute Engine. Select your VM and stop i
 but still in the list. *This VM still accrues storage cost*. The disk is still stored such that when you start it again, all the state is
 maintained.
 
+### Start a Jupyter Notebook instance
+A more advanced exercise is to start a VM with Jupyter Notebook that can be modified for fit you computational requirements. Setup is fairly easy with a one-click deploy system in the 
+
+First go the the AI platform page in the Google Cloud console.
+https://console.cloud.google.com/ai-platform/notebooks/instances
+
+Next you can deploy by hitting the 'New Instance' button and selecting 'Python'. There is no europe-west4 yet, so you can select europe-west2 (London) as you regions. For the machine type, leave it with the default setting so that we do not hit our computational quota.
+
+Create an instance with you name and once its completed, hit the OPEN JUPYTERLAB button to connect to the instance.
+
+We have to initialze the same google login command that we did for the prevous exercise, so open a new Terminal and see if you can login to your Google Cloud account, list the contents of the google cloud bucket where the manifest.json file is located and download the VCF file.
+
+
+
+
+
 
 
